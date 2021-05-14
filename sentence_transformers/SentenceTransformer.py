@@ -431,6 +431,19 @@ class SentenceTransformer(nn.Sequential):
         else:
             return sum([len(t) for t in text])      #Sum of length of individual strings
 
+
+    @staticmethod
+    def _get_loss_logger(filename):
+        loss_logger = logging.getLogger(__name__)
+        loss_logger.setLevel(logging.INFO)
+        fh = logging.FileHandler(filename=filename, encoding="utf-8")
+        fh.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(message)s')
+        fh.setFormatter(formatter)
+        loss_logger.addHandler(fh)
+        return loss_logger
+
+
     def fit(self,
             train_objectives: Iterable[Tuple[DataLoader, nn.Module]],
             evaluator: SentenceEvaluator = None,
@@ -489,7 +502,11 @@ class SentenceTransformer(nn.Sequential):
 
         if output_path is not None:
             os.makedirs(output_path, exist_ok=True)
+            loss_logger_path = os.path.join(output_path, 'train_loss.log')
+        else:
+            loss_logger_path = 'train_loss.log'
 
+        loss_logger = self._get_loss_logger(loss_logger_path)
         dataloaders = [dataloader for dataloader, _ in train_objectives]
 
         # Use smart batching
@@ -575,6 +592,7 @@ class SentenceTransformer(nn.Sequential):
                         torch.nn.utils.clip_grad_norm_(loss_model.parameters(), max_grad_norm)
                         optimizer.step()
 
+                    loss_logger.info(f"Loss at epoch {epoch}, training step {training_steps}: {loss_value}")
                     optimizer.zero_grad()
 
                     if not skip_scheduler:
